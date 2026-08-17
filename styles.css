@@ -191,7 +191,19 @@ button:focus-visible, a:focus-visible, [tabindex]:focus-visible {
   min-height: calc(100svh - var(--header-height) - 120px);
 }
 
-.hero__copy { position: relative; z-index: 2; max-width: 720px; }
+.hero__copy { position: relative; z-index: 3; max-width: 720px; }
+
+.hero-particle-field {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  opacity: calc(1 - var(--scene-exit, 0) * .86);
+  pointer-events: none;
+  contain: strict;
+}
 
 .hero h1, .view-heading h1 {
   margin: 0;
@@ -996,6 +1008,7 @@ h1[data-reveal="title"] {
 .character-stage {
   --action-progress: 0;
   position: relative;
+  z-index: 2;
   align-self: stretch;
   min-height: min(78vh, 760px);
   margin: -1vh calc(var(--space-page) * -.45) -2vh 0;
@@ -1214,6 +1227,7 @@ h1[data-reveal="title"] {
 .motion-reduced .character-loader { display: none; }
 .motion-reduced .character-stage .accountant-character { opacity: 1; transform: none; }
 .motion-reduced .character-pose { transition: none; }
+.motion-reduced .hero-particle-field { opacity: .7; }
 
 @media (prefers-reduced-motion: reduce) {
   .hero-scene .character-stage {
@@ -1224,4 +1238,5 @@ h1[data-reveal="title"] {
   .character-loader { display: none; }
   .character-stage .accountant-character { opacity: 1; transform: none; }
   .character-pose { transition: none; }
+  .hero-particle-field { opacity: .7; }
 }

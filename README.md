@@ -13,10 +13,12 @@ Nova base visual e estrutural do Alimenta-o: uma experiência estática, respons
 - personagem vetorial autoral no hero, representando um contador de terno;
 - ciclo sincronizado de 9 segundos entre CORRER, COMER e FLEXÃO, com 3 segundos por ação;
 - animação do personagem pausada fora do hero ou quando a página não está visível;
+- campo de partículas em Canvas 2D com três camadas de profundidade, resposta local ao ponteiro e parallax suave;
+- densidade, resolução e movimento adaptados para mobile e `prefers-reduced-motion`;
 - sistema visual construído com tokens CSS para facilitar futuras mudanças de identidade;
 - rotas locais por hash, sem dependências ou processo de build.
 
-Esta etapa não inclui partículas, Orbital Timeline ou checklist animado.
+Esta etapa não inclui Orbital Timeline ou checklist animado.
 
 ## Executar localmente
 

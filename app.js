@@ -106,6 +106,9 @@
   let heroCycleOrigin = 0;
   let heroElapsed = 0;
   let heroActionIndex = -1;
+  let heroParticleField = null;
+  let heroSceneProgress = 0;
+  let heroSceneExit = 0;
 
   function titleLines(lines, id = "") {
     return `<h1 ${id ? `id="${id}"` : ""} data-reveal="title">${lines.map(line => `<span class="title-mask"><span>${line}</span></span>`).join("")}</h1>`;
@@ -252,6 +255,7 @@
       <section class="view view--today" aria-labelledby="today-title">
         <div class="hero-scene" data-scroll-scene="hero">
           <div class="hero" data-sticky-section>
+            <canvas class="hero-particle-field" data-particle-field aria-hidden="true"></canvas>
             <div class="hero__copy">
               <p class="eyebrow" data-reveal="soft">01 — Hoje / visão principal</p>
               ${titleLines(["Tudo o que", "sustenta o dia."], "today-title")}
@@ -377,6 +381,262 @@
     heroStage.querySelector("[data-character-state]")?.replaceChildren(action.state);
     heroStage.dataset.action = action.id;
     heroStage.dataset.actionChangedAt = performance.now().toFixed(1);
+    heroParticleField?.setAction(action.id);
+  }
+
+  function createHeroParticleField(hero, canvas) {
+    if (!hero || !canvas) return null;
+    const context = canvas.getContext("2d", { alpha: true });
+    if (!context) return null;
+
+    let width = 1;
+    let height = 1;
+    let dpr = 1;
+    let count = 0;
+    let rect = hero.getBoundingClientRect();
+    let lastTime = 0;
+    let action = "run";
+    let pointerX = 0;
+    let pointerY = 0;
+    let pointerTarget = 0;
+    let pointerStrength = 0;
+    let parallaxX = 0;
+    let parallaxY = 0;
+    let staticDrawn = false;
+    let primaryColor = "#ef334c";
+    let lightColor = "#f2f3ef";
+    let softColor = "#a5aaa6";
+    let x = new Float32Array(0);
+    let y = new Float32Array(0);
+    let originX = new Float32Array(0);
+    let originY = new Float32Array(0);
+    let velocityX = new Float32Array(0);
+    let velocityY = new Float32Array(0);
+    let depth = new Float32Array(0);
+    let size = new Float32Array(0);
+    let seed = new Float32Array(0);
+    let kind = new Uint8Array(0);
+
+    const random = (index, salt = 0) => {
+      const value = Math.sin((index + 1) * 91.731 + salt * 47.117) * 43758.5453;
+      return value - Math.floor(value);
+    };
+
+    function densityAt(px, py) {
+      const mobile = width <= 760;
+      const textX = width * (mobile ? .46 : .22);
+      const textY = height * (mobile ? .28 : .45);
+      const textRX = width * (mobile ? .46 : .29);
+      const textRY = height * (mobile ? .29 : .43);
+      const characterX = width * (mobile ? .54 : .77);
+      const characterY = height * (mobile ? .75 : .50);
+      const characterRX = width * (mobile ? .39 : .19);
+      const characterRY = height * (mobile ? .23 : .34);
+      const textDistance = Math.hypot((px - textX) / textRX, (py - textY) / textRY);
+      const characterDistance = Math.hypot((px - characterX) / characterRX, (py - characterY) / characterRY);
+      const textMask = .18 + .82 * smoothstep((textDistance - .55) / .7);
+      const characterMask = .34 + .66 * smoothstep((characterDistance - .62) / .56);
+      return Math.min(textMask, characterMask);
+    }
+
+    function rebuild() {
+      rect = hero.getBoundingClientRect();
+      width = Math.max(1, rect.width);
+      height = Math.max(1, rect.height);
+      const mobile = width <= 760;
+      dpr = Math.min(devicePixelRatio || 1, mobile ? 1.25 : 1.5);
+      canvas.width = Math.round(width * dpr);
+      canvas.height = Math.round(height * dpr);
+      canvas.style.width = `${width}px`;
+      canvas.style.height = `${height}px`;
+      context.setTransform(dpr, 0, 0, dpr, 0, 0);
+      const tokens = getComputedStyle(document.documentElement);
+      primaryColor = tokens.getPropertyValue("--color-primary").trim() || primaryColor;
+      lightColor = tokens.getPropertyValue("--color-text").trim() || lightColor;
+      softColor = tokens.getPropertyValue("--color-text-soft").trim() || softColor;
+
+      count = mobile ? 52 : Math.round(Math.min(154, Math.max(108, width * .09)));
+      canvas.dataset.particleCount = String(count);
+      canvas.dataset.pixelRatio = dpr.toFixed(2);
+      canvas.dataset.motion = reducedMotionQuery.matches ? "static" : "active";
+      x = new Float32Array(count);
+      y = new Float32Array(count);
+      originX = new Float32Array(count);
+      originY = new Float32Array(count);
+      velocityX = new Float32Array(count);
+      velocityY = new Float32Array(count);
+      depth = new Float32Array(count);
+      size = new Float32Array(count);
+      seed = new Float32Array(count);
+      kind = new Uint8Array(count);
+
+      for (let index = 0; index < count; index += 1) {
+        const px = random(index, 1) * width;
+        const py = random(index, 2) * height;
+        x[index] = originX[index] = px;
+        y[index] = originY[index] = py;
+        depth[index] = Math.min(1, .3 + (index % 3) * .3 + random(index, 3) * .08);
+        size[index] = .65 + random(index, 4) * 1.55;
+        seed[index] = random(index, 5) * Math.PI * 2;
+        kind[index] = index % 5 === 0 ? 1 : index % 9 === 0 ? 2 : 0;
+      }
+
+      pointerX = width * .5;
+      pointerY = height * .5;
+      pointerStrength = 0;
+      parallaxX = 0;
+      parallaxY = 0;
+      lastTime = 0;
+      staticDrawn = false;
+    }
+
+    function drawParticle(index, px, py, opacity, trailScale) {
+      const particleSize = size[index] * (.62 + depth[index] * .62);
+      context.globalAlpha = opacity;
+      context.fillStyle = index % 4 === 0 ? primaryColor : index % 7 === 0 ? lightColor : softColor;
+      context.strokeStyle = context.fillStyle;
+
+      if (kind[index] === 1) {
+        const length = (3.5 + depth[index] * 8) * trailScale;
+        const speed = Math.hypot(velocityX[index], velocityY[index]);
+        const directionX = speed > .08 ? velocityX[index] / speed : Math.cos(seed[index]);
+        const directionY = speed > .08 ? velocityY[index] / speed : Math.sin(seed[index]);
+        context.lineWidth = Math.max(.55, particleSize * .62);
+        context.beginPath();
+        context.moveTo(px - directionX * length, py - directionY * length);
+        context.lineTo(px + directionX * length * .18, py + directionY * length * .18);
+        context.stroke();
+        return;
+      }
+
+      if (kind[index] === 2) {
+        context.lineWidth = Math.max(.5, particleSize * .45);
+        context.beginPath();
+        context.moveTo(px - particleSize * 1.7, py);
+        context.lineTo(px + particleSize * 1.7, py);
+        context.stroke();
+        return;
+      }
+
+      context.beginPath();
+      context.arc(px, py, particleSize, 0, Math.PI * 2);
+      context.fill();
+    }
+
+    function render(now, animate) {
+      const reduced = reducedMotionQuery.matches;
+      if (reduced && staticDrawn) return;
+      const delta = lastTime ? Math.min(.034, Math.max(.001, (now - lastTime) / 1000)) : .016;
+      lastTime = now;
+      context.clearRect(0, 0, width, height);
+
+      const mobile = width <= 760;
+      const radius = mobile ? 128 : 184;
+      const radiusSquared = radius * radius;
+      const activePointer = animate && !reduced ? pointerTarget : 0;
+      pointerStrength += (activePointer - pointerStrength) * Math.min(1, delta * 7.5);
+      const normalizedX = width ? pointerX / width - .5 : 0;
+      const normalizedY = height ? pointerY / height - .5 : 0;
+      parallaxX += (normalizedX * 9 * pointerStrength - parallaxX) * Math.min(1, delta * 3.6);
+      parallaxY += (normalizedY * 7 * pointerStrength - parallaxY) * Math.min(1, delta * 3.6);
+
+      const actionSpeed = action === "run" ? 1.22 : action === "eat" ? .64 : .88;
+      const actionAmplitude = action === "run" ? 1.18 : action === "eat" ? .66 : .88;
+      const trailScale = action === "run" ? 1.35 : action === "eat" ? .62 : .86;
+      const scrollShift = heroSceneProgress * (mobile ? 9 : 17);
+      const exitOpacity = 1 - heroSceneExit * .86;
+      const pulse = action === "pushup" ? Math.sin(now * .0052) : 0;
+
+      for (let index = 0; index < count; index += 1) {
+        const layer = depth[index];
+        const phase = seed[index];
+        const time = now * .00034 * actionSpeed * (.7 + layer * .6);
+        let targetX = originX[index] + Math.sin(time * 2.2 + phase) * (4 + layer * 10) * actionAmplitude;
+        let targetY = originY[index] + Math.cos(time * 1.55 + phase * 1.31) * (3 + layer * 7) * actionAmplitude;
+        targetX += parallaxX * (.25 + layer * .9) + heroSceneProgress * (layer - .5) * 7;
+        targetY += parallaxY * (.22 + layer * .75) + scrollShift * (.32 + layer * .68);
+        if (action === "eat") targetX += (width * .57 - originX[index]) * .012 * layer;
+        if (action === "pushup") targetY += pulse * (2 + layer * 5);
+
+        if (animate && !reduced) {
+          const spring = action === "eat" ? 5.8 : 4.4;
+          velocityX[index] += (targetX - x[index]) * spring * delta;
+          velocityY[index] += (targetY - y[index]) * spring * delta;
+
+          if (pointerStrength > .004) {
+            const differenceX = x[index] - pointerX;
+            const differenceY = y[index] - pointerY;
+            const distanceSquared = differenceX * differenceX + differenceY * differenceY;
+            if (distanceSquared > .01 && distanceSquared < radiusSquared) {
+              const distance = Math.sqrt(distanceSquared);
+              const falloff = smoothstep(1 - distance / radius) * pointerStrength * (.45 + layer * .72);
+              const normalX = differenceX / distance;
+              const normalY = differenceY / distance;
+              const response = index % 3;
+              if (response === 0) {
+                velocityX[index] += normalX * falloff * 230 * delta;
+                velocityY[index] += normalY * falloff * 230 * delta;
+              } else if (response === 1) {
+                velocityX[index] -= normalY * falloff * 145 * delta;
+                velocityY[index] += normalX * falloff * 145 * delta;
+              } else {
+                velocityX[index] -= normalX * falloff * 72 * delta;
+                velocityY[index] -= normalY * falloff * 72 * delta;
+              }
+            }
+          }
+
+          const friction = Math.pow(.91 - layer * .025, delta * 60);
+          velocityX[index] *= friction;
+          velocityY[index] *= friction;
+          x[index] += velocityX[index] * delta * 60;
+          y[index] += velocityY[index] * delta * 60;
+        } else {
+          x[index] = targetX;
+          y[index] = targetY;
+        }
+
+        const mask = densityAt(x[index], y[index]);
+        const opacity = (.055 + layer * .22) * mask * exitOpacity;
+        drawParticle(index, x[index], y[index], opacity, trailScale);
+      }
+
+      context.globalAlpha = 1;
+      staticDrawn = reduced;
+    }
+
+    function locatePointer(event) {
+      if (event.pointerType === "touch" && event.type === "pointermove" && !event.isPrimary) return;
+      rect = hero.getBoundingClientRect();
+      pointerX = Math.max(0, Math.min(width, event.clientX - rect.left));
+      pointerY = Math.max(0, Math.min(height, event.clientY - rect.top));
+      pointerTarget = 1;
+      canvas.dataset.pointer = "active";
+    }
+
+    function releasePointer() { pointerTarget = 0; canvas.dataset.pointer = "released"; }
+
+    hero.addEventListener("pointerenter", locatePointer, { passive: true });
+    hero.addEventListener("pointermove", locatePointer, { passive: true });
+    hero.addEventListener("pointerleave", releasePointer, { passive: true });
+    hero.addEventListener("pointerup", releasePointer, { passive: true });
+    hero.addEventListener("pointercancel", releasePointer, { passive: true });
+    rebuild();
+
+    return {
+      frame(now) { render(now, true); },
+      pause() { lastTime = 0; pointerTarget = 0; },
+      resize: rebuild,
+      setAction(nextAction) { action = nextAction; canvas.dataset.action = nextAction; staticDrawn = false; },
+      destroy() {
+        hero.removeEventListener("pointerenter", locatePointer);
+        hero.removeEventListener("pointermove", locatePointer);
+        hero.removeEventListener("pointerleave", releasePointer);
+        hero.removeEventListener("pointerup", releasePointer);
+        hero.removeEventListener("pointercancel", releasePointer);
+        context.clearRect(0, 0, width, height);
+      }
+    };
   }
 
   function normalizedHeroElapsed(now) {
@@ -385,11 +645,13 @@
 
   function heroActionTick() {
     if (!heroStage || !heroPlaying) return;
-    heroElapsed = normalizedHeroElapsed(performance.now());
+    const now = performance.now();
+    heroElapsed = normalizedHeroElapsed(now);
     const index = Math.min(heroActions.length - 1, Math.floor(heroElapsed / heroActionDuration));
     const progress = (heroElapsed % heroActionDuration) / heroActionDuration;
     applyHeroAction(index);
     heroStage.style.setProperty("--action-progress", progress.toFixed(4));
+    heroParticleField?.frame(now);
     heroActionFrame = requestAnimationFrame(heroActionTick);
   }
 
@@ -406,6 +668,7 @@
       heroActionFrame = requestAnimationFrame(heroActionTick);
     } else {
       heroElapsed = normalizedHeroElapsed(now);
+      heroParticleField?.pause();
     }
   }
 
@@ -418,16 +681,23 @@
     heroActionFrame = 0;
     heroVisibilityObserver?.disconnect();
     heroVisibilityObserver = null;
+    heroParticleField?.destroy();
+    heroParticleField = null;
     heroStage = null;
     heroInView = false;
     heroPlaying = false;
     heroElapsed = 0;
     heroActionIndex = -1;
+    heroSceneProgress = 0;
+    heroSceneExit = 0;
   }
 
   function setupHeroExperience() {
     heroStage = appView.querySelector("[data-character-stage]");
     if (!heroStage) return;
+
+    const hero = appView.querySelector(".hero");
+    heroParticleField = createHeroParticleField(hero, hero?.querySelector("[data-particle-field]"));
 
     heroElapsed = 0;
     heroCycleOrigin = performance.now();
@@ -552,6 +822,8 @@
     scrollFrame = 0;
 
     if (reducedMotionQuery.matches) {
+      heroSceneProgress = 0;
+      heroSceneExit = 0;
       [...sceneMetrics, ...revealMetrics].forEach(({ element }) => {
         element.style.setProperty("--scene-progress", 1);
         element.style.setProperty("--scene-enter", 1);
@@ -577,6 +849,10 @@
       element.style.setProperty("--phase-a", smoothstep((progress - .04) / .22).toFixed(4));
       element.style.setProperty("--phase-b", smoothstep((progress - .18) / .24).toFixed(4));
       element.style.setProperty("--phase-c", smoothstep((progress - .34) / .22).toFixed(4));
+      if (type === "hero") {
+        heroSceneProgress = progress;
+        heroSceneExit = exit;
+      }
     });
 
     revealMetrics.forEach(({ element, top, height, delay }) => {
@@ -623,10 +899,10 @@
   addEventListener("popstate", () => transitionTo(resolveRoute()));
   addEventListener("resize", () => {
     clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(() => { startMarquee(); measureScrollSystem(); }, 160);
+    resizeTimer = setTimeout(() => { startMarquee(); heroParticleField?.resize(); measureScrollSystem(); }, 160);
   });
   desktopQuery.addEventListener("change", () => { startMarquee(); centerActiveOnMobile(); measureScrollSystem(); });
-  reducedMotionQuery.addEventListener("change", () => { startMarquee(); measureScrollSystem(); });
+  reducedMotionQuery.addEventListener("change", () => { startMarquee(); heroParticleField?.resize(); measureScrollSystem(); });
 
   document.querySelector("#current-date").textContent = new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" });
   const initialRoute = resolveRoute();
