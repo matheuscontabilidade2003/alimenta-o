@@ -1,26 +1,67 @@
 <!doctype html>
 <html lang="pt-BR">
 <head>
-  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#f6f7f8">
-  <meta name="description" content="Alimenta-o — alimentação, economia e rotina em um só lugar."><title>Alimenta-o</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet"><link rel="stylesheet" href="./styles.css">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#090a0a">
+  <meta name="description" content="Alimenta-o — alimentação, compras, movimento e rotina em uma única experiência.">
+  <title>Alimenta-o</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Manrope:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css">
 </head>
-<body data-theme="clean" data-page="today">
-  <a class="skip-link" href="#main">Ir para o conteúdo</a>
-  <header class="app-header">
-    <a class="brand" href="#today" data-nav="today" aria-label="Alimenta-o — início"><span class="brand-mark" aria-hidden="true"><i></i><i></i></span><span><strong>ALIMENTA<span>•O</span></strong><small>alimentação • economia • rotina</small></span></a>
-    <nav class="desktop-nav" aria-label="Navegação principal"><button class="nav-item active" data-nav="today">Hoje</button><button class="nav-item" data-nav="food">Alimentação</button><button class="nav-item" data-nav="exercise">Exercícios</button><button class="nav-item" data-nav="economy">Economia</button><button class="nav-item" data-nav="progress">Progresso</button></nav>
-    <button class="icon-btn settings-btn" data-nav="settings" aria-label="Abrir configurações"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4Z"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-1.7 1.7-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V20h-2.4v-.1a1.7 1.7 0 0 0-1.1-1.56 1.7 1.7 0 0 0-1.88.34l-.06.06-1.7-1.7.06-.06A1.7 1.7 0 0 0 8.4 15a1.7 1.7 0 0 0-1.56-1.03H6.7v-2.4h.14A1.7 1.7 0 0 0 8.4 10.5a1.7 1.7 0 0 0-.34-1.88L8 8.56l1.7-1.7.06.06a1.7 1.7 0 0 0 1.88.34A1.7 1.7 0 0 0 12.7 5.7v-.1h2.4v.1a1.7 1.7 0 0 0 1.03 1.56 1.7 1.7 0 0 0 1.88-.34l.06-.06 1.7 1.7-.06.06a1.7 1.7 0 0 0-.34 1.88 1.7 1.7 0 0 0 1.56 1.03H21v2.4h-.1A1.7 1.7 0 0 0 19.4 15Z"/></svg></button>
+<body data-view="today">
+  <a class="skip-link" href="#app-view">Ir para o conteúdo</a>
+
+  <header class="site-header">
+    <a class="brand" href="#today" data-route="today" aria-label="Alimenta-o — Hoje">
+      <span class="brand-symbol" aria-hidden="true"><i></i><i></i></span>
+      <span class="brand-name">ALIMENTA<span>•O</span></span>
+    </a>
+    <div class="header-context" aria-label="Contexto do aplicativo">
+      <span>ROTINA PESSOAL</span>
+      <time id="current-date"></time>
+    </div>
+    <div class="system-state"><i aria-hidden="true"></i> BASE / 01</div>
   </header>
-  <div class="character-layer" aria-hidden="true">
-    <svg class="executive" viewBox="0 0 720 900"><defs><linearGradient id="suit" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#454a4f"/><stop offset="1" stop-color="#171a1e"/></linearGradient><linearGradient id="shirt" x1="0" x2="0" y1="0" y2="1"><stop stop-color="#fff"/><stop offset="1" stop-color="#e8ecef"/></linearGradient><linearGradient id="skin" x1="0" x2="1"><stop stop-color="#ded6d1"/><stop offset="1" stop-color="#bcb3ad"/></linearGradient><filter id="soft-shadow" x="-30%" y="-30%" width="160%" height="170%"><feDropShadow dx="0" dy="20" stdDeviation="22" flood-color="#30151a" flood-opacity=".15"/></filter></defs>
-      <g class="pose pose-run" data-pose="0" filter="url(#soft-shadow)"><g transform="translate(340 120) rotate(7)"><ellipse cx="0" cy="70" rx="64" ry="75" fill="url(#skin)"/><path d="M-57 54Q-38-20 16-12Q63-2 62 60Q28 21-12 27Q-39 30-57 54Z" fill="#25292d"/><path d="M-30 91q30 22 61 0" fill="none" stroke="#6d5e59" stroke-width="4" stroke-linecap="round"/><path d="M-83 150Q-25 120 47 143L92 342Q22 384-87 340Z" fill="url(#suit)"/><path d="M-34 142L4 262L38 142L17 130H-13Z" fill="url(#shirt)"/><path d="M-9 155L10 155L20 244L4 274L-13 244Z" fill="#dd1f35"/><path d="M-34 143L-69 171L-23 255L4 219Z" fill="#5b6065"/><path d="M38 143L72 171L28 255L4 219Z" fill="#4b5055"/><path d="M-71 168Q-136 210-169 299Q-173 318-152 326Q-133 333-122 313L-46 218Z" fill="url(#suit)"/><path d="M-168 295Q-188 323-174 338Q-156 350-139 322Z" fill="url(#skin)"/><path d="M67 162Q113 199 154 258Q166 278 149 291Q130 300 117 282L43 215Z" fill="url(#suit)"/><path d="M153 254Q179 277 166 296Q150 310 132 284Z" fill="url(#skin)"/><path d="M-67 333Q-50 319-10 330L-46 523Q-51 548-78 546Q-103 540-98 515Z" fill="#272b30"/><path d="M-82 522Q-55 519-42 534L-97 573Q-123 582-130 560Q-133 542-82 522Z" fill="#d9dde0"/><path d="M-3 331Q37 320 67 340L140 491Q151 516 129 529Q107 539 92 516L8 406Z" fill="#1e2226"/><path d="M126 506Q150 507 157 528L104 555Q78 559 76 538Q76 522 126 506Z" fill="#eef0f2"/><path d="M9 155Q34 204 40 268" fill="none" stroke="#e21d35" stroke-width="8" stroke-linecap="round" class="tie-motion"/></g></g>
-      <g class="pose pose-eat" data-pose="1" filter="url(#soft-shadow)"><g transform="translate(350 115)"><ellipse cx="0" cy="70" rx="64" ry="75" fill="url(#skin)"/><path d="M-58 54Q-38-19 17-12Q64-1 62 59Q26 20-12 27Q-42 29-58 54Z" fill="#25292d"/><path d="M-29 92q29 18 59 0" fill="none" stroke="#6d5e59" stroke-width="4" stroke-linecap="round"/><path d="M-85 151Q0 114 85 151L77 390Q0 421-77 390Z" fill="url(#suit)"/><path d="M-34 143L0 259L36 143L17 130H-14Z" fill="url(#shirt)"/><path d="M-9 154H10L18 245L0 273L-17 245Z" fill="#dd1f35"/><path d="M-35 144L-70 171L-22 256L0 218Z" fill="#5a5f64"/><path d="M36 144L70 171L23 256L0 218Z" fill="#4b5055"/><path d="M-74 171Q-124 226-119 316Q-116 341-92 341Q-71 338-73 315L-38 215Z" fill="url(#suit)"/><path d="M-105 319Q-110 349-86 354Q-62 354-62 328Z" fill="url(#skin)"/><path d="M70 170Q111 190 127 239L78 282Q60 295 47 278Q36 262 55 247L91 226Q81 211 51 205Z" fill="url(#suit)"/><path d="M78 270Q100 248 119 236Q139 221 152 239Q161 257 142 270L100 300Z" fill="url(#skin)"/><circle cx="151" cy="232" r="15" fill="#e21d35" class="food-dot"/><ellipse cx="105" cy="315" rx="66" ry="15" fill="#f4f5f5" stroke="#b8bdc1" stroke-width="4"/><path d="M-63 383H-5L-17 565Q-20 591-45 590Q-70 589-70 563Z" fill="#262a2e"/><path d="M7 383H64L70 563Q70 590 44 590Q18 590 16 565Z" fill="#202428"/><path d="M-47 574H-9Q7 574 6 594H-74Q-75 574-47 574Z" fill="#e7eaec"/><path d="M43 574H80Q97 574 96 594H16Q15 574 43 574Z" fill="#e7eaec"/></g></g>
-      <g class="pose pose-push" data-pose="2" filter="url(#soft-shadow)"><g transform="translate(65 360)"><ellipse cx="515" cy="72" rx="57" ry="65" fill="url(#skin)"/><path d="M467 62Q477 1 526 7Q570 14 570 65Q540 34 508 35Q483 36 467 62Z" fill="#25292d"/><path d="M162 66Q326 34 472 71L449 188Q312 204 151 178Z" fill="url(#suit)"/><path d="M432 69L477 90L448 148L409 101Z" fill="url(#shirt)"/><path d="M442 83L460 91L438 157L421 139Z" fill="#dd1f35" class="tie-motion"/><path d="M410 143Q452 162 470 232Q476 254 455 261Q433 265 425 243L383 176Z" fill="url(#suit)"/><path d="M450 246Q466 260 457 280H414Q408 257 428 244Z" fill="url(#skin)"/><path d="M349 154Q378 176 384 238Q386 261 364 264Q341 264 336 241L316 173Z" fill="url(#suit)"/><path d="M362 248Q379 260 371 280H328Q322 257 341 246Z" fill="url(#skin)"/><path d="M158 77Q93 70 33 110L-5 163Q-18 184 2 198Q22 208 38 189L84 146L177 159Z" fill="#24282c"/><path d="M41 180Q15 193-5 185Q-24 177-28 198Q-27 218-1 220L48 210Z" fill="#e8ebed"/><path d="M159 139Q94 147 53 207L19 243Q5 260 23 276Q43 287 59 268L102 228L184 181Z" fill="#1d2125"/><path d="M52 257Q27 272 7 265Q-14 259-17 280Q-13 300 11 301L62 288Z" fill="#e8ebed"/><ellipse cx="280" cy="285" rx="270" ry="18" fill="#bdc2c6" opacity=".18"/></g></g>
-    </svg>
-  </div>
-  <main id="main" tabindex="-1"><section class="today-hero" id="today-hero" aria-labelledby="hero-title"><div class="hero-copy"><p class="eyebrow"><span id="greeting">Olá</span> <span aria-hidden="true">/</span> <time id="current-date"></time></p><h1 id="hero-title">Seu dia,<br><span>em movimento.</span></h1><p id="day-summary" class="hero-summary">Uma refeição de cada vez.</p></div><section class="action-counter" aria-label="Ciclo de ações"><div class="counter-top"><span>Ritmo de agora</span><span><i></i><b id="seconds" aria-hidden="true">7.0s</b></span></div><div class="counter-action" aria-live="polite"><strong id="action-number">01</strong><span id="action-name">CORRER</span></div><p id="action-description">Passada firme. Ritmo antes de intensidade.</p><div class="progress-track" aria-hidden="true"><span id="action-progress"></span></div><div class="counter-labels"><span>CORRER</span><span>COMER</span><span>FLEXÃO</span></div></section><div class="scroll-hint" aria-hidden="true"><span></span>Continue o dia</div></section><section id="page-content" class="page-content" aria-live="polite"></section></main>
-  <nav class="bottom-nav" aria-label="Navegação móvel"><button class="active" data-nav="today"><span>⌂</span>Hoje</button><button data-nav="food"><span>◇</span>Alimentação</button><button data-nav="exercise"><span>↗</span>Exercícios</button><button data-nav="economy"><span>R$</span>Economia</button><button data-nav="progress"><span>◫</span>Progresso</button></nav>
-  <div class="modal-backdrop" id="modal-backdrop" hidden><section class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"><header><div><span class="kicker" id="modal-kicker">Alimenta-o</span><h2 id="modal-title">Editar</h2></div><button class="icon-btn" data-close-modal aria-label="Fechar">×</button></header><div id="modal-content"></div></section></div><div class="toast-region" id="toast-region" aria-live="polite" aria-atomic="true"></div><input id="import-file" type="file" accept="application/json" hidden><script src="./app.js" defer></script>
-</body></html>
+
+  <main id="app-view" tabindex="-1"></main>
+
+  <nav class="motion-nav" aria-label="Áreas do Alimenta-o">
+    <div class="motion-nav__shell">
+      <div class="motion-nav__meta" aria-hidden="true">
+        <span>ÁREAS</span>
+        <b>07</b>
+      </div>
+      <div class="motion-nav__viewport" id="nav-viewport">
+        <div class="motion-nav__track" id="nav-track">
+          <div class="motion-nav__group" id="nav-primary">
+            <button class="motion-nav__item" data-route="today">HOJE</button>
+            <button class="motion-nav__item" data-route="offers">OFERTAS</button>
+            <button class="motion-nav__item" data-route="shopping">COMPRAS</button>
+            <button class="motion-nav__item" data-route="food">ALIMENTAÇÃO</button>
+            <button class="motion-nav__item" data-route="movement">MOVIMENTO</button>
+            <button class="motion-nav__item" data-route="routes">TRAJETOS</button>
+            <button class="motion-nav__item" data-route="progress">PROGRESSO</button>
+          </div>
+          <div class="motion-nav__group motion-nav__group--mirror" aria-hidden="true">
+            <span data-mirror="today">HOJE</span>
+            <span data-mirror="offers">OFERTAS</span>
+            <span data-mirror="shopping">COMPRAS</span>
+            <span data-mirror="food">ALIMENTAÇÃO</span>
+            <span data-mirror="movement">MOVIMENTO</span>
+            <span data-mirror="routes">TRAJETOS</span>
+            <span data-mirror="progress">PROGRESSO</span>
+          </div>
+        </div>
+      </div>
+      <div class="motion-nav__hint" aria-hidden="true">NAVEGAR ↗</div>
+    </div>
+  </nav>
+
+  <div class="route-announcer" id="route-announcer" aria-live="polite" aria-atomic="true"></div>
+  <noscript>O Alimenta-o precisa de JavaScript habilitado para alternar entre as áreas.</noscript>
+  <script src="./app.js" defer></script>
+</body>
+</html>

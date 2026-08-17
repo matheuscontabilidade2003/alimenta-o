@@ -1,76 +1,232 @@
 (() => {
-  'use strict';
-  const KEY='alimenta-o:data:v2', VERSION=2;
-  const $=(s,p=document)=>p.querySelector(s), $$=(s,p=document)=>[...p.querySelectorAll(s)];
-  const uid=()=>`${Date.now().toString(36)}-${Math.random().toString(36).slice(2,8)}`;
-  const iso=(d=new Date())=>{const z=new Date(d.getTime()-d.getTimezoneOffset()*60000);return z.toISOString().slice(0,10)};
-  const today=()=>iso();
-  const esc=v=>String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
-  const money=v=>Number(v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
-  const niceDate=v=>v?new Date(`${v}T12:00:00`).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'}):'—';
-  const nowDate=today();
-  const defaultMeals=()=>[
-    {id:uid(),date:nowDate,name:'Café da manhã',time:'07:30',location:'Em casa',foods:'3 ovos; banana',notes:'',status:'planned'},
-    {id:uid(),date:nowDate,name:'Almoço',time:'12:00',location:'Em casa',foods:'180 g de frango pronto; 130 g de arroz cozido; 100 g de lentilha ou feijão; 150–200 g de tomate ou legumes',notes:'Preparo sem panela de pressão.',status:'planned'},
-    {id:uid(),date:nowDate,name:'Jantar',time:'19:00',location:'Faculdade',foods:'Fonte de proteína; arroz; feijão; salada',notes:'Registre como realmente foi.',status:'planned'},
-    {id:uid(),date:nowDate,name:'Antes de dormir',time:'22:30',location:'Em casa',foods:'',notes:'Refeição inteiramente editável.',status:'planned'}
+  "use strict";
+
+  const routes = [
+    { id: "today", label: "Hoje" },
+    { id: "offers", label: "Ofertas" },
+    { id: "shopping", label: "Compras" },
+    { id: "food", label: "Alimentação" },
+    { id: "movement", label: "Movimento" },
+    { id: "routes", label: "Trajetos" },
+    { id: "progress", label: "Progresso" }
   ];
-  const initialState=()=>({version:VERSION,settings:{name:'',height:1.8,weight:76,goal:'Reduzir gordura corporal com uma rotina sustentável.',budget:0,waterGoal:0,preparedMeals:0,boughtMealCost:0,homeMealCost:0,theme:localStorage.getItem('alimentaRedlineTheme')||'clean',reducedMotion:false,dateFormat:'long',preferredActivities:'Corrida, caminhada, flexões, abdominais e treino em casa',routine:'Café e almoço em casa; jantar na faculdade.',noPressureCooker:true},word:null,meals:defaultMeals(),activities:[],expenses:[],measurements:[],pantry:[],water:{},dismissedAlerts:[]});
-  function load(){try{const raw=JSON.parse(localStorage.getItem(KEY));if(raw&&raw.version===VERSION)return {...initialState(),...raw,settings:{...initialState().settings,...raw.settings}}}catch(e){}return initialState()}
-  let state=load(),page=(location.hash||'#today').slice(1),modalSubmit=null,lastFocus=null;
-  const pages=['today','food','exercise','economy','progress','settings'];if(!pages.includes(page))page='today';
-  function save(){state.version=VERSION;localStorage.setItem(KEY,JSON.stringify(state));applySettings()}
-  function applySettings(){document.body.dataset.theme=state.settings.theme||'clean';document.body.classList.toggle('reduce-motion',!!state.settings.reducedMotion);document.documentElement.style.scrollBehavior=motionReduced()?'auto':'smooth'}
-  function motionReduced(){return state.settings.reducedMotion||matchMedia('(prefers-reduced-motion: reduce)').matches}
-  function toast(message,type='success'){const el=document.createElement('div');el.className=`toast ${type==='error'?'error':''}`;el.textContent=message;$('#toast-region').append(el);setTimeout(()=>el.remove(),3200)}
-  function statusLabel(s){return ({planned:'Planejado',completed:'Concluído',changed:'Alterado',outside:'Realizado fora',skipped:'Pulado',late:'Atrasado'})[s]||s}
-  function badge(s){const cls=s==='completed'?'good':s==='outside'?'info':s==='late'?'warn':s==='skipped'?'neutral':'';return `<span class="badge ${cls}">${esc(statusLabel(s))}</span>`}
-  function openModal(title,kicker,content,onSubmit){lastFocus=document.activeElement;$('#modal-title').textContent=title;$('#modal-kicker').textContent=kicker;$('#modal-content').innerHTML=content;modalSubmit=onSubmit||null;$('#modal-backdrop').hidden=false;document.body.style.overflow='hidden';setTimeout(()=>$('.modal input,.modal select,.modal textarea,.modal button')?.focus(),20)}
-  function closeModal(){if($('#modal-backdrop').hidden)return;$('#modal-backdrop').hidden=true;$('#modal-content').innerHTML='';document.body.style.overflow='';modalSubmit=null;lastFocus?.focus()}
-  function formWrap(fields,submit='Salvar',danger=false){return `<form class="form" id="modal-form"><div class="form-grid">${fields}</div><div class="form-error" id="form-error" role="alert"></div><div class="btn-row"><button class="btn ${danger?'danger':'primary'}" type="submit">${esc(submit)}</button><button class="btn secondary" type="button" data-close-modal>Cancelar</button></div></form>`}
-  const field=(label,name,type='text',value='',extra='',full='')=>`<div class="field ${full}"><label for="f-${name}">${label}</label><input id="f-${name}" name="${name}" type="${type}" value="${esc(value)}" ${extra}></div>`;
-  const area=(label,name,value='',extra='',full='full')=>`<div class="field ${full}"><label for="f-${name}">${label}</label><textarea id="f-${name}" name="${name}" ${extra}>${esc(value)}</textarea></div>`;
-  const select=(label,name,options,value='',full='')=>`<div class="field ${full}"><label for="f-${name}">${label}</label><select id="f-${name}" name="${name}">${options.map(([v,l])=>`<option value="${esc(v)}" ${v===value?'selected':''}>${esc(l)}</option>`).join('')}</select></div>`;
-  function formData(form){return Object.fromEntries(new FormData(form).entries())}
-  function setPage(next,push=true){if(!pages.includes(next))return;page=next;document.body.dataset.page=page;if(push)history.replaceState(null,'',`#${page}`);$$('[data-nav]').forEach(x=>x.classList.toggle('active',x.dataset.nav===page));$('#today-hero').hidden=page!=='today';window.scrollTo({top:0,behavior:motionReduced()?'auto':'smooth'});render()}
-  function sectionHead(kicker,title,copy,button=''){return `<header class="page-head"><div><span class="kicker">${kicker}</span><h1>${title}</h1><p>${copy}</p></div>${button}</header>`}
-  function empty(title,copy,action='',label='Adicionar'){return `<div class="empty"><div><div class="empty-icon">+</div><h3>${title}</h3><p>${copy}</p>${action?`<button class="btn primary" data-action="${action}">${label}</button>`:''}</div></div>`}
-  function monthExpenses(){const m=today().slice(0,7);return state.expenses.filter(x=>x.date.startsWith(m)).reduce((a,x)=>a+Number(x.value),0)}
-  function dayExpenses(){return state.expenses.filter(x=>x.date===today()).reduce((a,x)=>a+Number(x.value),0)}
-  function mealsToday(){return state.meals.filter(x=>x.date===today()).sort((a,b)=>a.time.localeCompare(b.time))}
-  function activitiesToday(){return state.activities.filter(x=>x.date===today())}
-  function homeCount(){return state.meals.filter(x=>x.status==='completed'&&x.location.toLowerCase().includes('casa')).length}
-  function savings(){const diff=Number(state.settings.boughtMealCost)-Number(state.settings.homeMealCost);return diff>0?diff*homeCount():0}
-  function generatedAlerts(){const out=[],t=new Date(`${today()}T12:00:00`);state.pantry.forEach(i=>{if(Number(i.qty)<=1)out.push({id:`low-${i.id}`,kind:'warn',title:`Estoque baixo: ${i.name}`,copy:`Restam ${i.qty} ${i.unit||'unidade(s)'}.`});if(i.expiry){const days=Math.ceil((new Date(`${i.expiry}T12:00:00`)-t)/86400000);if(days>=0&&days<=3)out.push({id:`exp-${i.id}`,kind:'danger',title:`${i.name} próximo da validade`,copy:`Validade em ${niceDate(i.expiry)}.`})}});const budget=Number(state.settings.budget);if(budget>0&&monthExpenses()>budget)out.push({id:`budget-${today().slice(0,7)}`,kind:'danger',title:'Gasto acima do planejado',copy:'O gasto mensal ultrapassou o orçamento configurado.'});return out.filter(x=>!state.dismissedAlerts.includes(x.id))}
-  function renderToday(){const meals=mealsToday(),done=meals.filter(x=>x.status==='completed').length,next=meals.find(x=>['planned','changed','late'].includes(x.status));const water=Number(state.water[today()]||0),acts=activitiesToday(),budget=Number(state.settings.budget),remaining=budget?Math.max(0,budget-monthExpenses()):0,alerts=generatedAlerts();$('#day-summary').textContent=`${done} de ${meals.length} refeições concluídas · ${acts.length?`${acts.length} movimento(s) registrado(s)`:'movimento ainda não registrado'} · ${money(dayExpenses())} em alimentação hoje.`;return `${sectionHead('Hoje','O que importa agora.','Consistência vale mais que perfeição.')}
-    <div class="grid"><article class="card word-card span-12">${state.word&&state.word.date===today()?`<span class="kicker">Palavra do Dia</span><blockquote>“${esc(state.word.text)}”</blockquote>${state.word.ref?`<cite>${esc(state.word.ref)}</cite>`:''}<div class="btn-row" style="margin-top:18px"><button class="btn secondary small-btn" data-action="word-edit">Editar</button><button class="btn ghost small-btn" data-action="word-delete">Remover</button></div>`:`<span class="kicker">Palavra do Dia</span>${empty('Nenhuma mensagem para hoje','Adicione uma frase e, se quiser, uma referência bíblica. Nada será preenchido automaticamente.','word-edit','Adicionar mensagem')}`}</article>
-    <article class="card span-7"><span class="kicker">Próxima ação</span><h2>Próxima refeição</h2>${next?`<div class="meal-feature"><header><div><span class="kicker">${esc(next.time)} · ${esc(next.location)}</span><h3>${esc(next.name)}</h3></div>${badge(next.status)}</header><p class="section-copy">${esc(next.foods||'Alimentos ainda não definidos.')}</p>${next.notes?`<p class="small muted">${esc(next.notes)}</p>`:''}<div class="btn-row" style="margin-top:16px"><button class="btn primary" data-action="meal-complete" data-id="${next.id}">Comi</button><button class="btn secondary" data-action="meal-edit" data-id="${next.id}">Alterar</button><button class="btn ghost" data-action="meal-outside" data-id="${next.id}">Comi fora</button><button class="btn secondary" data-action="meal-skip" data-id="${next.id}">Pular</button><button class="btn secondary" data-action="meal-summary" data-id="${next.id}">Resumo</button></div></div>`:empty('Nenhuma refeição pendente','Crie uma refeição ou planeje outro dia.','meal-new','Nova refeição')}</article>
-    <article class="card span-5"><span class="kicker">Resumo real</span><h2>Seu dia em números</h2><div class="metrics"><div class="metric"><span>Refeições planejadas</span><strong>${meals.length}</strong></div><div class="metric"><span>Concluídas</span><strong>${done}</strong></div><div class="metric"><span>Água registrada</span><strong>${water} ml</strong></div><div class="metric"><span>Exercício</span><strong>${acts.reduce((a,x)=>a+Number(x.duration||0),0)} min</strong></div><div class="metric"><span>Gasto hoje</span><strong>${money(dayExpenses())}</strong></div><div class="metric"><span>Orçamento restante</span><strong>${budget?money(remaining):'Não definido'}</strong></div><div class="metric"><span>Refeições prontas</span><strong>${Number(state.settings.preparedMeals||0)}</strong></div><div class="metric positive"><span>Economia estimada</span><strong>${state.settings.boughtMealCost&&state.settings.homeMealCost?money(savings()):'Não configurada'}</strong></div></div><div class="btn-row" style="margin-top:14px"><button class="btn secondary small-btn" data-action="water-add">+ 250 ml de água</button></div></article>
-    <article class="card span-8"><span class="kicker">Ciclo do dia</span><h2>Em ordem cronológica</h2><div class="timeline">${meals.map(mealRow).join('')}${acts.map(x=>`<div class="timeline-row"><span class="timeline-time">${esc(x.time||'—')}</span><div class="timeline-main"><b>${esc(x.type)}</b><p>${esc(x.duration)} min${x.distance?` · ${esc(x.distance)} km`:''}</p></div><span class="badge good">Registrado</span></div>`).join('')}</div></article>
-    <article class="card span-4"><span class="kicker">Alertas úteis</span><h2>Só dados registrados</h2><div class="stack">${alerts.length?alerts.map(a=>`<div class="list-row alert-row"><span class="alert-icon ${a.kind}">!</span><div><b class="small">${esc(a.title)}</b><p class="small muted">${esc(a.copy)}</p></div><div class="row-actions"><button class="btn secondary small-btn" data-action="alert-dismiss" data-id="${a.id}">Dispensar</button></div></div>`).join(''):empty('Tudo em ordem','Os alertas aparecerão a partir do estoque, validade, orçamento e planejamento registrados.')}</div></article>
-    <article class="card span-12"><span class="kicker">Movimento</span><h2>Movimento contínuo. Ritmo antes de intensidade.</h2><p class="section-copy">${acts.length?`${acts.length} atividade(s) registrada(s) hoje.`:'Nenhuma atividade registrada hoje. Descanso também faz parte da rotina.'}</p><div class="btn-row" style="margin-top:16px"><button class="btn primary" data-action="activity-new">Registrar atividade</button><button class="btn secondary" data-nav="exercise">Ver exercícios</button></div></article></div>`}
-  function mealRow(m){return `<div class="timeline-row"><span class="timeline-time">${esc(m.time)}</span><div class="timeline-main"><b>${esc(m.name)}</b><p>${esc(m.foods||m.notes||'Sem descrição')}</p></div>${badge(m.status)}<div class="row-actions"><button class="btn secondary small-btn" data-action="meal-edit" data-id="${m.id}">Editar</button></div></div>`}
-  function renderFood(){const meals=[...state.meals].sort((a,b)=>b.date.localeCompare(a.date)||a.time.localeCompare(b.time));return `${sectionHead('Alimentação','Planejamento alimentar.','Uma refeição de cada vez. Tudo pode ser alterado.',`<button class="btn primary" data-action="meal-new">Nova refeição</button>`)}<div class="grid"><article class="card span-8"><div class="segmented"><button class="active">Plano e histórico</button><button data-action="meal-new">Planejar</button></div><div class="stack">${meals.length?meals.map(m=>`<div class="list-row"><div><span class="kicker">${niceDate(m.date)} · ${esc(m.time)} · ${esc(m.location)}</span><h3>${esc(m.name)}</h3><p class="small muted">${esc(m.foods||'Alimentos não definidos')}</p>${m.notes?`<p class="small muted">${esc(m.notes)}</p>`:''}</div><div class="row-actions">${badge(m.status)}<button class="btn secondary small-btn" data-action="meal-complete" data-id="${m.id}">Comi</button><button class="btn secondary small-btn" data-action="meal-edit" data-id="${m.id}">Editar</button><button class="btn secondary small-btn" data-action="meal-duplicate" data-id="${m.id}">Duplicar</button><button class="btn ghost small-btn" data-action="meal-outside" data-id="${m.id}">Fora</button><button class="btn danger small-btn" data-action="meal-delete" data-id="${m.id}">Excluir</button></div></div>`).join(''):empty('Nenhuma refeição','Crie o primeiro item do seu planejamento.','meal-new','Nova refeição')}</div></article><aside class="card span-4"><span class="kicker">Preparo semanal</span><h2>Casa e despensa</h2><p class="section-copy">Sem panela de pressão. Registre porções, compras e validade.</p><div class="metrics"><div class="metric"><span>Refeições prontas</span><strong>${Number(state.settings.preparedMeals||0)}</strong></div><div class="metric"><span>Ingredientes</span><strong>${state.pantry.length}</strong></div></div><div class="btn-row" style="margin-top:14px"><button class="btn primary small-btn" data-action="pantry-new">Adicionar ingrediente</button><button class="btn secondary small-btn" data-action="prepared-edit">Editar porções</button></div><div class="stack">${state.pantry.length?state.pantry.map(i=>`<div class="list-row"><div><b class="small">${esc(i.name)}</b><p class="small muted">${esc(i.qty)} ${esc(i.unit)}${i.expiry?` · validade ${niceDate(i.expiry)}`:''}</p></div><div class="row-actions"><button class="btn secondary small-btn" data-action="pantry-edit" data-id="${i.id}">Editar</button><button class="btn danger small-btn" data-action="pantry-delete" data-id="${i.id}">Excluir</button></div></div>`).join(''):empty('Despensa vazia','Cadastre ingredientes para gerar alertas reais.')}</div></aside></div>`}
-  function renderExercise(){const list=[...state.activities].sort((a,b)=>b.date.localeCompare(a.date));const week=new Date();week.setDate(week.getDate()-6);const recent=list.filter(x=>new Date(`${x.date}T12:00:00`)>=week);const minutes=recent.reduce((a,x)=>a+Number(x.duration||0),0);return `${sectionHead('Exercícios','Movimento possível.','Atividades sem academia, registradas sem pressão.',`<button class="btn primary" data-action="activity-new">Registrar atividade</button>`)}<div class="grid"><article class="card span-4"><span class="kicker">Últimos 7 dias</span><h2>${recent.length} atividade(s)</h2><div class="metrics"><div class="metric"><span>Tempo total</span><strong>${minutes} min</strong></div><div class="metric"><span>Corridas</span><strong>${recent.filter(x=>x.type==='Corrida').length}</strong></div></div><p class="section-copy" style="margin-top:16px">Hoje não precisa ser perfeito para contar.</p></article><article class="card span-8"><span class="kicker">Histórico</span><h2>Registros de movimento</h2><div class="stack">${list.length?list.map(x=>`<div class="list-row"><div><span class="kicker">${niceDate(x.date)} · ${esc(x.time||'sem horário')}</span><h3>${esc(x.type)}</h3><p class="small muted">${esc(x.duration)} min${x.distance?` · ${esc(x.distance)} km`:''}${x.reps?` · ${esc(x.reps)} repetições`:''}${x.sets?` · ${esc(x.sets)} séries`:''} · dificuldade ${esc(x.difficulty)}/5</p>${x.notes?`<p class="small muted">${esc(x.notes)}</p>`:''}</div><div class="row-actions"><button class="btn secondary small-btn" data-action="activity-edit" data-id="${x.id}">Editar</button><button class="btn danger small-btn" data-action="activity-delete" data-id="${x.id}">Excluir</button></div></div>`).join(''):empty('Nenhuma atividade registrada','Comece quando fizer sentido. Descanso não é falha.','activity-new','Registrar')}</div></article></div>`}
-  function renderEconomy(){const spent=monthExpenses(),budget=Number(state.settings.budget),remaining=budget?Math.max(0,budget-spent):0,home=homeCount(),outside=state.meals.filter(x=>x.status==='outside').length;return `${sectionHead('Economia','Feito em casa, dinheiro preservado.','Valores aparecem somente a partir dos registros.',`<button class="btn primary" data-action="expense-new">Registrar gasto</button>`)}<div class="grid"><article class="card span-12"><div class="metrics"><div class="metric"><span>Orçamento mensal</span><strong>${budget?money(budget):'Não definido'}</strong></div><div class="metric"><span>Gasto no mês</span><strong>${money(spent)}</strong></div><div class="metric"><span>Restante</span><strong>${budget?money(remaining):'—'}</strong></div><div class="metric"><span>Refeições em casa</span><strong>${home}</strong></div><div class="metric"><span>Refeições fora</span><strong>${outside}</strong></div><div class="metric positive"><span>Economia estimada</span><strong>${state.settings.boughtMealCost&&state.settings.homeMealCost?money(savings()):'Não configurada'}</strong></div></div></article><article class="card span-12"><span class="kicker">Histórico</span><h2>Despesas alimentares</h2><div class="stack">${state.expenses.length?[...state.expenses].sort((a,b)=>b.date.localeCompare(a.date)).map(x=>`<div class="list-row"><div><span class="kicker">${niceDate(x.date)} · ${esc(x.category)}</span><h3>${esc(x.description)}</h3><p class="small muted">${x.payment?esc(x.payment):'Forma não informada'}${x.notes?` · ${esc(x.notes)}`:''}</p></div><strong>${money(x.value)}</strong><div class="row-actions"><button class="btn secondary small-btn" data-action="expense-edit" data-id="${x.id}">Editar</button><button class="btn danger small-btn" data-action="expense-delete" data-id="${x.id}">Excluir</button></div></div>`).join(''):empty('Nenhuma despesa registrada','Adicione uma compra de mercado, refeição ou outro gasto alimentar.','expense-new','Primeiro gasto')}</div></article></div>`}
-  function renderProgress(){const measures=[...state.measurements].sort((a,b)=>a.date.localeCompare(b.date)),done=state.meals.filter(x=>x.status==='completed').length,out=state.meals.filter(x=>x.status==='outside').length;const weightMeasures=measures.filter(x=>Number(x.weight));let chart='';if(weightMeasures.length>=2){const vals=weightMeasures.map(x=>Number(x.weight)),min=Math.min(...vals)-1,max=Math.max(...vals)+1;chart=`<div class="chart" aria-label="Evolução do peso">${weightMeasures.map(x=>`<div class="bar" style="--h:${Math.max(10,((Number(x.weight)-min)/(max-min))*100)}%" title="${x.weight} kg"><span>${niceDate(x.date)}</span></div>`).join('')}</div>`}return `${sectionHead('Progresso','Mais que um número.','Acompanhe consistência, rotina e dados que você escolheu informar.',`<button class="btn primary" data-action="measurement-new">Novo registro</button>`)}<div class="grid"><article class="card span-12"><div class="metrics"><div class="metric"><span>Registros corporais</span><strong>${measures.length}</strong></div><div class="metric"><span>Refeições concluídas</span><strong>${done}</strong></div><div class="metric"><span>Atividades</span><strong>${state.activities.length}</strong></div><div class="metric"><span>Corridas</span><strong>${state.activities.filter(x=>x.type==='Corrida').length}</strong></div><div class="metric"><span>Feitas em casa</span><strong>${homeCount()}</strong></div><div class="metric"><span>Realizadas fora</span><strong>${out}</strong></div><div class="metric"><span>Gasto alimentar</span><strong>${money(state.expenses.reduce((a,x)=>a+Number(x.value),0))}</strong></div><div class="metric positive"><span>Economia acumulada</span><strong>${state.settings.boughtMealCost&&state.settings.homeMealCost?money(savings()):'Não configurada'}</strong></div></div></article><article class="card span-7"><span class="kicker">Evolução</span><h2>Peso registrado</h2>${chart||empty('Dados insuficientes','O gráfico aparece depois de pelo menos dois registros com peso. Nenhum valor será inventado.','measurement-new','Registrar')}</article><article class="card span-5"><span class="kicker">Medições</span><h2>Histórico opcional</h2><div class="stack">${measures.length?measures.reverse().map(x=>`<div class="list-row"><div><b>${niceDate(x.date)}</b><p class="small muted">${x.weight?`${esc(x.weight)} kg`:'Peso não informado'}${x.waist?` · abdômen ${esc(x.waist)} cm`:''}</p></div><div class="row-actions"><button class="btn secondary small-btn" data-action="measurement-edit" data-id="${x.id}">Editar</button><button class="btn danger small-btn" data-action="measurement-delete" data-id="${x.id}">Excluir</button></div></div>`).join(''):empty('Sem medições','Peso e medida abdominal são opcionais.')}</div></article></div>`}
-  function renderSettings(){const s=state.settings;return `${sectionHead('Configurações','Seu Alimenta-o.','Todos os dados pessoais, objetivos e valores são editáveis.')}${formWrap(`${field('Nome','name','text',s.name,'placeholder="Como prefere ser chamado"')}${field('Altura (m)','height','number',s.height,'min="0.5" max="2.8" step="0.01" required')}${field('Peso atual (kg)','weight','number',s.weight,'min="20" max="400" step="0.1"')}${field('Orçamento alimentar mensal (R$)','budget','number',s.budget,'min="0" step="0.01"')}${field('Meta de água (ml)','waterGoal','number',s.waterGoal,'min="0" step="50"')}${field('Refeições prontas','preparedMeals','number',s.preparedMeals,'min="0" step="1"')}${field('Custo médio comprado (R$)','boughtMealCost','number',s.boughtMealCost,'min="0" step="0.01"')}${field('Custo médio em casa (R$)','homeMealCost','number',s.homeMealCost,'min="0" step="0.01"')}${area('Objetivo','goal',s.goal)}${area('Rotina semanal','routine',s.routine)}${area('Atividades preferidas','preferredActivities',s.preferredActivities)}${select('Tema','theme',[['clean','Redline Clean'],['pearl','Redline Pearl'],['ice','Redline Ice'],['contrast','Redline Contrast']],s.theme)}${select('Redução de movimento','reducedMotion',[['false','Seguir o sistema'],['true','Reduzir animações']],String(s.reducedMotion))}`, 'Salvar configurações').replace('id="modal-form"','id="settings-form"')}<div class="settings-sections" style="margin-top:18px"><article class="card"><span class="kicker">Dados locais</span><h2>Backup e portabilidade</h2><p class="section-copy">Exporte todos os registros ou importe um backup compatível.</p><div class="btn-row" style="margin-top:15px"><button class="btn secondary" data-action="export">Exportar JSON</button><button class="btn secondary" data-action="import">Importar backup</button></div></article><article class="card danger-zone"><span class="kicker">Zona de cuidado</span><h2>Redefinir dados</h2><p class="section-copy">Estas ações pedem confirmação e não podem ser desfeitas.</p><div class="btn-row" style="margin-top:15px"><button class="btn danger" data-action="reset">Restaurar configuração inicial</button><button class="btn danger" data-action="delete-all">Excluir dados locais</button></div></article></div>`}
-  function render(){applySettings();$('#page-content').innerHTML=page==='today'?renderToday():page==='food'?renderFood():page==='exercise'?renderExercise():page==='economy'?renderEconomy():page==='progress'?renderProgress():renderSettings();if(page==='settings')$('#settings-form').addEventListener('submit',saveSettings)}
-  function mealForm(m={date:today(),name:'',time:'12:00',location:'Em casa',foods:'',notes:'',status:'planned'}){openModal(m.id?'Editar refeição':'Nova refeição','Alimentação',formWrap(`${field('Nome','name','text',m.name,'required maxlength="60"')}${field('Data','date','date',m.date,'required')}${field('Horário','time','time',m.time,'required')}${field('Local','location','text',m.location,'required maxlength="60"')}${area('Alimentos e quantidades','foods',m.foods,'placeholder="Separe os itens com ponto e vírgula" required')}${area('Observação','notes',m.notes)}${select('Status','status',[['planned','Planejado'],['completed','Concluído'],['changed','Alterado'],['outside','Realizado fora'],['skipped','Pulado']],m.status)}`),d=>{const item={...m,...d,id:m.id||uid()};if(m.id)state.meals=state.meals.map(x=>x.id===m.id?item:x);else state.meals.push(item);save();closeModal();render();toast('Refeição salva.')})}
-  function activityForm(x={date:today(),time:'',type:'Caminhada',duration:'',distance:'',reps:'',sets:'',difficulty:'3',notes:''}){openModal(x.id?'Editar atividade':'Registrar atividade','Movimento',formWrap(`${field('Data','date','date',x.date,'required')}${field('Horário','time','time',x.time)}${select('Tipo','type',['Corrida','Caminhada','Flexões','Abdominais','Treino em casa','Descanso'].map(v=>[v,v]),x.type)}${field('Duração (min)','duration','number',x.duration,'min="0" step="1" required')}${field('Distância (km)','distance','number',x.distance,'min="0" step="0.1"')}${field('Repetições','reps','number',x.reps,'min="0" step="1"')}${field('Séries','sets','number',x.sets,'min="0" step="1"')}${select('Dificuldade percebida','difficulty',[1,2,3,4,5].map(v=>[String(v),`${v} / 5`]),String(x.difficulty))}${area('Observações','notes',x.notes)}`),d=>{const item={...x,...d,id:x.id||uid()};if(x.id)state.activities=state.activities.map(a=>a.id===x.id?item:a);else state.activities.push(item);save();closeModal();render();toast('Atividade registrada.')})}
-  function expenseForm(x={date:today(),category:'Mercado',description:'',value:'',payment:'',notes:''},mealId=''){openModal(x.id?'Editar despesa':'Registrar gasto','Economia',formWrap(`${field('Data','date','date',x.date,'required')}${select('Categoria','category',['Mercado','Refeição pronta','Faculdade','Lanche','Outro'].map(v=>[v,v]),x.category)}${field('Descrição','description','text',x.description,'required maxlength="80"')}${field('Valor (R$)','value','number',x.value,'min="0.01" step="0.01" required')}${field('Forma de pagamento','payment','text',x.payment,'maxlength="50"')}${area('Observação','notes',x.notes)}`),d=>{const item={...x,...d,id:x.id||uid(),value:Number(d.value)};if(x.id)state.expenses=state.expenses.map(a=>a.id===x.id?item:a);else state.expenses.push(item);if(mealId)state.meals=state.meals.map(m=>m.id===mealId?{...m,status:'outside',notes:[m.notes,d.description].filter(Boolean).join(' · ')}:m);save();closeModal();render();toast('Gasto registrado.')})}
-  function measurementForm(x={date:today(),weight:'',waist:'',notes:''}){openModal(x.id?'Editar registro':'Novo registro','Progresso',formWrap(`${field('Data','date','date',x.date,'required')}${field('Peso (kg, opcional)','weight','number',x.weight,'min="20" max="400" step="0.1"')}${field('Medida abdominal (cm, opcional)','waist','number',x.waist,'min="30" max="300" step="0.1"')}${area('Observação','notes',x.notes)}`),d=>{if(!d.weight&&!d.waist)throw new Error('Informe peso ou medida abdominal.');const item={...x,...d,id:x.id||uid()};if(x.id)state.measurements=state.measurements.map(a=>a.id===x.id?item:a);else state.measurements.push(item);save();closeModal();render();toast('Progresso salvo.')})}
-  function pantryForm(x={name:'',qty:'',unit:'unidade(s)',expiry:'',bought:false}){openModal(x.id?'Editar ingrediente':'Novo ingrediente','Despensa',formWrap(`${field('Ingrediente','name','text',x.name,'required maxlength="60"')}${field('Quantidade','qty','number',x.qty,'min="0" step="0.1" required')}${field('Unidade','unit','text',x.unit,'required maxlength="20"')}${field('Validade','expiry','date',x.expiry)}`),d=>{const item={...x,...d,id:x.id||uid()};if(x.id)state.pantry=state.pantry.map(a=>a.id===x.id?item:a);else state.pantry.push(item);save();closeModal();render();toast('Despensa atualizada.')})}
-  function wordForm(){const w=state.word||{text:'',ref:''};openModal('Palavra do Dia','Hoje',formWrap(`${area('Frase','text',w.text,'required maxlength="280"')}${field('Referência bíblica (opcional)','ref','text',w.ref,'maxlength="80"')}`),d=>{state.word={date:today(),text:d.text.trim(),ref:d.ref.trim()};save();closeModal();render();toast('Mensagem salva para hoje.')})}
-  function saveSettings(e){e.preventDefault();const d=formData(e.currentTarget);state.settings={...state.settings,...d,height:Number(d.height),weight:d.weight?Number(d.weight):'',budget:Number(d.budget||0),waterGoal:Number(d.waterGoal||0),preparedMeals:Number(d.preparedMeals||0),boughtMealCost:Number(d.boughtMealCost||0),homeMealCost:Number(d.homeMealCost||0),reducedMotion:d.reducedMotion==='true'};save();render();toast('Configurações salvas.')}
-  function remove(collection,id,label){if(!confirm(`Excluir ${label}?`))return;state[collection]=state[collection].filter(x=>x.id!==id);save();render();toast('Registro excluído.')}
-  function action(e){const btn=e.target.closest('[data-action],[data-nav],[data-close-modal]');if(!btn)return;if(btn.dataset.closeModal!==undefined){closeModal();return}if(btn.dataset.nav){setPage(btn.dataset.nav);return}const id=btn.dataset.id,a=btn.dataset.action,find=(k)=>state[k].find(x=>x.id===id);if(a==='word-edit')wordForm();else if(a==='word-delete'&&confirm('Remover a Palavra do Dia?')){state.word=null;save();render()}else if(a==='meal-new')mealForm();else if(a==='meal-edit')mealForm(find('meals'));else if(a==='meal-complete'){state.meals=state.meals.map(x=>x.id===id?{...x,status:'completed'}:x);save();render();toast('Refeição marcada como concluída.')}else if(a==='meal-outside'){const m=find('meals');expenseForm({date:m.date,category:'Refeição pronta',description:`${m.name} fora de casa`,value:'',payment:'',notes:''},id)}else if(a==='meal-skip'&&confirm('Registrar esta refeição como pulada?')){state.meals=state.meals.map(x=>x.id===id?{...x,status:'skipped'}:x);save();render();toast('Registrado sem julgamento.')}else if(a==='meal-summary'){const m=find('meals');openModal(m.name,'Resumo da refeição',`<div class="stack"><p><b>Data:</b> ${niceDate(m.date)} às ${esc(m.time)}</p><p><b>Local:</b> ${esc(m.location)}</p><p><b>Alimentos:</b> ${esc(m.foods||'Não definidos')}</p><p><b>Observação:</b> ${esc(m.notes||'Nenhuma')}</p><p><b>Status:</b> ${esc(statusLabel(m.status))}</p><button class="btn primary" data-close-modal>Fechar</button></div>`)}else if(a==='meal-duplicate'){const m=find('meals');state.meals.push({...m,id:uid(),date:today(),status:'planned',name:`${m.name} (cópia)`});save();render();toast('Refeição duplicada.')}else if(a==='meal-delete')remove('meals',id,'esta refeição');else if(a==='water-add'){state.water[today()]=Number(state.water[today()]||0)+250;save();render();toast('250 ml registrados.')}else if(a==='alert-dismiss'){state.dismissedAlerts.push(id);save();render()}else if(a==='activity-new')activityForm();else if(a==='activity-edit')activityForm(find('activities'));else if(a==='activity-delete')remove('activities',id,'esta atividade');else if(a==='expense-new')expenseForm();else if(a==='expense-edit')expenseForm(find('expenses'));else if(a==='expense-delete')remove('expenses',id,'esta despesa');else if(a==='measurement-new')measurementForm();else if(a==='measurement-edit')measurementForm(find('measurements'));else if(a==='measurement-delete')remove('measurements',id,'este registro');else if(a==='pantry-new')pantryForm();else if(a==='pantry-edit')pantryForm(find('pantry'));else if(a==='pantry-delete')remove('pantry',id,'este ingrediente');else if(a==='prepared-edit')openModal('Refeições prontas','Preparo',formWrap(field('Quantidade','prepared','number',state.settings.preparedMeals,'min="0" step="1" required','full')),d=>{state.settings.preparedMeals=Number(d.prepared);save();closeModal();render();toast('Porções atualizadas.');});else if(a==='export')exportData();else if(a==='import')$('#import-file').click();else if(a==='reset'&&confirm('Restaurar configurações e plano inicial? Registros atuais serão removidos.')){state=initialState();save();render();toast('Configuração inicial restaurada.')}else if(a==='delete-all'&&confirm('Excluir todos os dados locais do Alimenta-o?')){localStorage.removeItem(KEY);state=initialState();save();render();toast('Dados locais excluídos.')}}
-  function exportData(){const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`alimenta-o-backup-${today()}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),500);toast('Backup exportado.')}
-  function importData(file){const reader=new FileReader();reader.onload=()=>{try{const data=JSON.parse(reader.result);if(!data||!Array.isArray(data.meals)||!data.settings)throw new Error();state={...initialState(),...data,version:VERSION,settings:{...initialState().settings,...data.settings}};save();render();toast('Backup importado.')}catch(e){toast('Arquivo de backup inválido.','error')}};reader.readAsText(file)}
-  const actions=[{n:'01',name:'CORRER',desc:'Passada firme. Ritmo antes de intensidade.'},{n:'02',name:'COMER',desc:'Pausa consciente. Uma refeição de cada vez.'},{n:'03',name:'FLEXÃO',desc:'Força controlada. Consistência antes de pressa.'}];let cycleStart=performance.now(),active=-1;
-  function cycle(now){requestAnimationFrame(cycle);if(motionReduced()){setAction(1);$('#action-progress').style.width='100%';$('#seconds').textContent='pausado';return}const elapsed=((now-cycleStart)%21000+21000)%21000,i=Math.min(2,Math.floor(elapsed/7000)),within=elapsed%7000;if(i!==active)setAction(i);$('#action-progress').style.width=`${within/70}%`;$('#seconds').textContent=`${Math.max(0,(7000-within)/1000).toFixed(1)}s`}
-  function setAction(i){active=i;const a=actions[i];$('#action-number').textContent=a.n;$('#action-name').textContent=a.name;$('#action-description').textContent=a.desc;$('.character-layer').dataset.action=i}
-  let scrollQueued=false;function onScroll(){if(scrollQueued||motionReduced())return;scrollQueued=true;requestAnimationFrame(()=>{scrollQueued=false;const hero=$('#today-hero').offsetHeight||innerHeight,p=Math.min(1,scrollY/(hero*1.8)),deep=Math.min(1,scrollY/Math.max(1,document.documentElement.scrollHeight-innerHeight));document.documentElement.style.setProperty('--char-x',`${p*7}vw`);document.documentElement.style.setProperty('--char-y',`${deep*22}vh`);document.documentElement.style.setProperty('--char-scale',String(1-p*.38));document.documentElement.style.setProperty('--char-opacity',String(1-p*.52));document.documentElement.style.setProperty('--char-blur',`${p*.7}px`);$('.app-header').classList.toggle('scrolled',scrollY>10)})}
-  document.addEventListener('click',action);$('#modal-content').addEventListener('submit',e=>{if(e.target.id!=='modal-form')return;e.preventDefault();$('#form-error').textContent='';try{modalSubmit?.(formData(e.target))}catch(err){$('#form-error').textContent=err.message||'Revise os campos.'}});$('#modal-backdrop').addEventListener('click',e=>{if(e.target===$('#modal-backdrop'))closeModal()});document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal()});$('#import-file').addEventListener('change',e=>{if(e.target.files[0])importData(e.target.files[0]);e.target.value=''});addEventListener('scroll',onScroll,{passive:true});addEventListener('hashchange',()=>setPage((location.hash||'#today').slice(1),false));
-  const hour=new Date().getHours();$('#greeting').textContent=hour<12?'Bom dia':hour<18?'Boa tarde':'Boa noite';$('#current-date').textContent=new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long'});applySettings();setAction(motionReduced()?1:0);setPage(page,false);requestAnimationFrame(cycle);onScroll();
+
+  const routeContent = {
+    offers: {
+      number: "02", title: "Ofertas em contexto.",
+      intro: "Um espaço para observar preços e decidir com calma — sem transformar economia em ruído.",
+      primaryLabel: "RADAR DE PREÇOS", primaryTitle: "O que vale acompanhar.",
+      primaryCopy: "Na próxima etapa, ofertas verificadas poderão ser reunidas por produto, mercado e validade.",
+      secondaryLabel: "CRITÉRIO", secondaryTitle: "Preço bom precisa de referência.",
+      secondaryCopy: "A estrutura está preparada para comparar histórico e necessidade real antes de destacar uma compra.",
+      signals: [["01", "Itens acompanhados", "A DEFINIR"], ["02", "Mercados", "A DEFINIR"], ["03", "Validade das ofertas", "A DEFINIR"]]
+    },
+    shopping: {
+      number: "03", title: "Comprar com intenção.",
+      intro: "Lista, despensa e orçamento devem conversar na mesma direção, com clareza antes de quantidade.",
+      primaryLabel: "LISTA ATUAL", primaryTitle: "O necessário vem primeiro.",
+      primaryCopy: "A futura lista de compras ocupará este módulo sem misturar planejamento com publicidade.",
+      secondaryLabel: "DESPENSA", secondaryTitle: "Estoque visível, desperdício menor.",
+      secondaryCopy: "A base aceita posteriormente quantidades, validade e alertas derivados dos dados registrados.",
+      signals: [["01", "Lista da semana", "SEM ITENS"], ["02", "Itens próximos do fim", "SEM DADOS"], ["03", "Orçamento de compras", "NÃO DEFINIDO"]]
+    },
+    food: {
+      number: "04", title: "Alimentação sem ruído.",
+      intro: "Planejar refeições como parte da rotina: informação suficiente, escolhas editáveis e nenhum julgamento.",
+      primaryLabel: "PLANO ALIMENTAR", primaryTitle: "Uma refeição de cada vez.",
+      primaryCopy: "O planejamento diário será inserido aqui mantendo horários, locais e alimentos fáceis de revisar.",
+      secondaryLabel: "PREPARO", secondaryTitle: "A semana começa antes da fome.",
+      secondaryCopy: "Esta região receberá organização de porções e preparo doméstico em uma etapa funcional posterior.",
+      signals: [["01", "Próxima refeição", "SEM REGISTRO"], ["02", "Refeições planejadas", "SEM REGISTRO"], ["03", "Preparo semanal", "SEM REGISTRO"]]
+    },
+    movement: {
+      number: "05", title: "Movimento possível.",
+      intro: "Atividade física integrada ao dia, sem estética de academia e sem transformar constância em pressão.",
+      primaryLabel: "RITMO", primaryTitle: "Consistência antes de intensidade.",
+      primaryCopy: "Corrida, caminhada e treino em casa poderão ser registrados aqui com contexto e duração.",
+      secondaryLabel: "RECUPERAÇÃO", secondaryTitle: "Descanso também é movimento.",
+      secondaryCopy: "A arquitetura reserva espaço para esforço percebido, observações e dias de recuperação.",
+      signals: [["01", "Atividade de hoje", "NÃO REGISTRADA"], ["02", "Tempo em movimento", "SEM DADOS"], ["03", "Ritmo da semana", "SEM DADOS"]]
+    },
+    routes: {
+      number: "06", title: "Trajetos que cabem no dia.",
+      intro: "Deslocamentos vistos como parte da rotina — tempo, distância e escolhas mais eficientes.",
+      primaryLabel: "ROTAS", primaryTitle: "Entre casa, trabalho e faculdade.",
+      primaryCopy: "A área está pronta para receber trajetos frequentes sem depender de mapas nesta primeira etapa.",
+      secondaryLabel: "TEMPO", secondaryTitle: "Planejar também é preservar energia.",
+      secondaryCopy: "Comparações futuras poderão relacionar duração, custo e movimento de cada deslocamento.",
+      signals: [["01", "Próximo trajeto", "NÃO DEFINIDO"], ["02", "Distância", "SEM DADOS"], ["03", "Tempo estimado", "SEM DADOS"]]
+    },
+    progress: {
+      number: "07", title: "Progresso com contexto.",
+      intro: "Uma leitura ampla da rotina, construída apenas com os registros que realmente existem.",
+      primaryLabel: "EVOLUÇÃO", primaryTitle: "Mais que um número isolado.",
+      primaryCopy: "Indicadores e gráficos só serão mostrados quando houver dados suficientes para uma leitura responsável.",
+      secondaryLabel: "CONSISTÊNCIA", secondaryTitle: "O que se repete transforma.",
+      secondaryCopy: "Alimentação, economia, movimento e trajetos poderão convergir aqui sem inventar resultados.",
+      signals: [["01", "Período observado", "SEM DADOS"], ["02", "Registros", "SEM DADOS"], ["03", "Tendência", "INDISPONÍVEL"]]
+    }
+  };
+
+  const appView = document.querySelector("#app-view");
+  const announcer = document.querySelector("#route-announcer");
+  const navViewport = document.querySelector("#nav-viewport");
+  const navTrack = document.querySelector("#nav-track");
+  const navPrimary = document.querySelector("#nav-primary");
+  const desktopQuery = matchMedia("(min-width: 761px)");
+  const reducedMotionQuery = matchMedia("(prefers-reduced-motion: reduce)");
+
+  let marquee = null;
+  let rateFrame = 0;
+  let resizeTimer = 0;
+
+  function todayTemplate() {
+    return `
+      <section class="view view--today" aria-labelledby="today-title">
+        <div class="hero">
+          <div class="hero__copy">
+            <p class="eyebrow">01 — Hoje / visão principal</p>
+            <h1 id="today-title">Tudo o que<br><span>sustenta o dia.</span></h1>
+            <p class="hero__intro">Alimentação, compras, movimento e escolhas financeiras reunidos em uma rotina mais legível.</p>
+            <div class="hero__meta" aria-label="Estrutura desta etapa">
+              <div><span>Estado</span><strong>Nova base</strong></div>
+              <div><span>Foco</span><strong>Organização</strong></div>
+              <div><span>Próximo</span><strong>Interações</strong></div>
+            </div>
+          </div>
+          <div class="future-stage" aria-label="Área preparada para a futura animação principal">
+            <span class="stage-label">PALCO DE INTERAÇÃO / FUTURO</span>
+            <span class="stage-state">ESTRUTURA ATIVA</span>
+            <div class="stage-axis"><span>CORRER</span><span>COMER</span><span>FLEXÃO</span></div>
+          </div>
+        </div>
+        <div class="day-rail" aria-label="Estrutura inicial da área Hoje">
+          <section class="day-rail__item"><span class="module-label">AGORA / 01</span><strong>O essencial do momento.</strong><p>Espaço reservado para Palavra do Dia, próxima refeição e alertas úteis.</p></section>
+          <section class="day-rail__item"><span class="module-label">EM SEGUIDA / 02</span><strong>O ritmo da rotina.</strong><p>Base preparada para tarefas, movimento, alimentação e compromissos.</p></section>
+          <section class="day-rail__item"><span class="module-label">HORIZONTE / 03</span><strong>O dia visto por inteiro.</strong><p>Região futura para informações financeiras e a Orbital Timeline.</p></section>
+        </div>
+      </section>`;
+  }
+
+  function areaTemplate(area) {
+    return `
+      <section class="view view--area" aria-labelledby="area-title">
+        <header class="view-heading">
+          <div><p class="eyebrow">${area.number} — Área do Alimenta-o</p><h1 id="area-title">${area.title}</h1></div>
+          <p>${area.intro}</p>
+        </header>
+        <div class="editorial-grid">
+          <section>
+            <span class="module-label">${area.primaryLabel}</span>
+            <h2>${area.primaryTitle}</h2>
+            <p>${area.primaryCopy}</p>
+            <div class="signal-list">
+              ${area.signals.map(([number, label, state]) => `<div class="signal-row"><span>${number}</span><b>${label}</b><small>${state}</small></div>`).join("")}
+            </div>
+          </section>
+          <section><span class="module-label">${area.secondaryLabel}</span><h2>${area.secondaryTitle}</h2><p>${area.secondaryCopy}</p></section>
+        </div>
+      </section>`;
+  }
+
+  function resolveRoute() {
+    const hash = location.hash.replace("#", "");
+    return routes.some(route => route.id === hash) ? hash : "today";
+  }
+
+  function updateNavigation(route) {
+    document.querySelectorAll(".motion-nav__item").forEach(item => {
+      const active = item.dataset.route === route;
+      item.classList.toggle("is-active", active);
+      if (active) item.setAttribute("aria-current", "page");
+      else item.removeAttribute("aria-current");
+    });
+    document.querySelectorAll("[data-mirror]").forEach(item => item.classList.toggle("is-active", item.dataset.mirror === route));
+  }
+
+  function render(route, { focus = false, announce = false } = {}) {
+    document.body.dataset.view = route;
+    appView.innerHTML = route === "today" ? todayTemplate() : areaTemplate(routeContent[route]);
+    updateNavigation(route);
+    window.scrollTo({ top: 0, behavior: reducedMotionQuery.matches ? "auto" : "smooth" });
+    if (focus) appView.focus({ preventScroll: true });
+    if (announce) announcer.textContent = `Área ${routes.find(item => item.id === route).label} aberta.`;
+  }
+
+  function navigate(route, { replace = false } = {}) {
+    if (!routes.some(item => item.id === route)) return;
+    const nextHash = `#${route}`;
+    if (replace) history.replaceState({ route }, "", nextHash);
+    else history.pushState({ route }, "", nextHash);
+    render(route, { focus: true, announce: true });
+    centerActiveOnMobile();
+  }
+
+  function centerActiveOnMobile() {
+    if (desktopQuery.matches) return;
+    navPrimary.querySelector(".is-active")?.scrollIntoView({ behavior: reducedMotionQuery.matches ? "auto" : "smooth", inline: "center", block: "nearest" });
+  }
+
+  function stopMarquee() {
+    cancelAnimationFrame(rateFrame);
+    marquee?.cancel();
+    marquee = null;
+    navTrack.style.transform = "";
+  }
+
+  function startMarquee() {
+    stopMarquee();
+    if (!desktopQuery.matches || reducedMotionQuery.matches) return;
+    const distance = navPrimary.getBoundingClientRect().width;
+    if (!distance) return;
+    marquee = navTrack.animate(
+      [{ transform: "translate3d(0,0,0)" }, { transform: `translate3d(-${distance}px,0,0)` }],
+      { duration: 46000, iterations: Infinity, easing: "linear" }
+    );
+  }
+
+  function easeMarqueeTo(targetRate) {
+    if (!marquee) return;
+    cancelAnimationFrame(rateFrame);
+    const initialRate = marquee.playbackRate;
+    const start = performance.now();
+    const duration = 520;
+    function step(now) {
+      const progress = Math.min(1, (now - start) / duration);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      marquee.playbackRate = initialRate + (targetRate - initialRate) * eased;
+      if (progress < 1) rateFrame = requestAnimationFrame(step);
+    }
+    rateFrame = requestAnimationFrame(step);
+  }
+
+  document.addEventListener("click", event => {
+    const routeTrigger = event.target.closest("[data-route]");
+    if (!routeTrigger) return;
+    event.preventDefault();
+    navigate(routeTrigger.dataset.route);
+  });
+
+  navViewport.addEventListener("pointerenter", () => {
+    cancelAnimationFrame(rateFrame);
+    if (marquee) marquee.playbackRate = .04;
+  });
+  navViewport.addEventListener("pointerleave", () => easeMarqueeTo(1));
+  navViewport.addEventListener("focusin", () => {
+    cancelAnimationFrame(rateFrame);
+    if (marquee) marquee.playbackRate = 0;
+  });
+  navViewport.addEventListener("focusout", () => {
+    if (!navViewport.matches(":hover")) easeMarqueeTo(1);
+  });
+  addEventListener("popstate", () => render(resolveRoute(), { focus: true, announce: true }));
+  addEventListener("resize", () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(startMarquee, 160); });
+  desktopQuery.addEventListener("change", () => { startMarquee(); centerActiveOnMobile(); });
+  reducedMotionQuery.addEventListener("change", startMarquee);
+
+  document.querySelector("#current-date").textContent = new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" });
+  const initialRoute = resolveRoute();
+  if (location.hash !== `#${initialRoute}`) history.replaceState({ route: initialRoute }, "", `#${initialRoute}`);
+  render(initialRoute);
+  requestAnimationFrame(startMarquee);
 })();

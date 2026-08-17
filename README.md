@@ -1,18 +1,16 @@
 # Alimenta-o
 
-Plataforma pessoal, estática e responsiva para acompanhar alimentação, movimento, economia e rotina.
+Nova base visual e estrutural do Alimenta-o: uma experiência estática, responsiva e preparada para evoluir por etapas.
 
-## Recursos
+## Estrutura atual
 
-- painel Hoje com ciclo visual de 21 segundos;
-- planejamento e histórico de refeições;
-- registro de atividades, despesas, despensa e medições;
-- indicadores calculados apenas com dados informados;
-- quatro variações REDLINE e opção de movimento reduzido;
-- persistência local versionada, exportação e importação em JSON;
-- interface responsiva com navegação móvel dedicada.
+- sete áreas reais: Hoje, Ofertas, Compras, Alimentação, Movimento, Trajetos e Progresso;
+- navegação inferior contínua no desktop e rolável por toque no mobile;
+- hero estrutural preparado para receber a animação principal em uma etapa posterior;
+- sistema visual construído com tokens CSS para facilitar futuras mudanças de identidade;
+- rotas locais por hash, sem dependências ou processo de build.
 
-O projeto usa apenas HTML, CSS, JavaScript e SVG, sem build e sem dependências de runtime.
+Esta etapa não inclui personagem, partículas, contador de ações, Orbital Timeline ou interações avançadas de scroll.
 
 ## Executar localmente
 
