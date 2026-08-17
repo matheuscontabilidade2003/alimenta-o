@@ -10,10 +10,13 @@ Nova base visual e estrutural do Alimenta-o: uma experiência estática, respons
 - capítulos editoriais reutilizáveis com títulos mascarados, pausas sticky seletivas e reveals progressivos;
 - Palavra do Dia apresentada como momento editorial de tela cheia;
 - transições suaves entre áreas e alternativa estática para `prefers-reduced-motion`;
+- personagem vetorial autoral no hero, representando um contador de terno;
+- ciclo sincronizado de 9 segundos entre CORRER, COMER e FLEXÃO, com 3 segundos por ação;
+- animação do personagem pausada fora do hero ou quando a página não está visível;
 - sistema visual construído com tokens CSS para facilitar futuras mudanças de identidade;
 - rotas locais por hash, sem dependências ou processo de build.
 
-Esta etapa não inclui personagem, partículas, contador de ações, Orbital Timeline ou checklist animado.
+Esta etapa não inclui partículas, Orbital Timeline ou checklist animado.
 
 ## Executar localmente
 
